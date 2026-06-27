@@ -39,8 +39,27 @@ def get_conversation_chain(vectorstore):
     retriever = vectorstore.as_retriever()
     return retriever  # just return retriever, we'll handle memory manually
 
-    
 
+def summarize_documents(text):
+    llm = ChatMistralAI(model="mistral-small-latest")
+    prompt = f"""Provide a concise summary of the document below.
+Include main topics and key points.
+
+Document:
+{text[:3000]}
+
+Summary:"""
+    response = llm.invoke(prompt)
+    return response.content
+
+    
+def get_chat_download(chat_history):
+    text = ""
+    for chat in chat_history:
+        text += f"You: {chat['question']}\n"
+        text += f"Bot: {chat['answer']}\n"
+        text += "-" * 50 + "\n"
+    return text
 
 def main():
     load_dotenv()
@@ -101,6 +120,25 @@ Answer:"""
                 text_chunks = get_text_chunks(raw_text)
                 vectorstore = get_vectorstore(text_chunks)
                 st.session_state.retriever = vectorstore.as_retriever()  # CHANGED: store retriever instead of conversation chain
+
+        if st.button("📝 Summarize Documents"):
+            if pdf_docs:
+                with st.spinner("Summarizing..."):
+                    raw_text = get_pdf_text(pdf_docs)
+                    summary = summarize_documents(raw_text)
+                    st.subheader("Summary:")
+                    st.write(summary)
+            else:
+              st.warning("Please upload PDFs first!")
+
+        if st.session_state.chat_history:
+            chat_text = get_chat_download(st.session_state.chat_history)
+            st.download_button(
+                label="📥 Download Chat History",
+                data=chat_text,
+                file_name="chat_history.txt",
+                mime="text/plain"
+    )
 
 
 if __name__== '__main__' :
